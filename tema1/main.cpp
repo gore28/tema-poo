@@ -114,229 +114,125 @@ int operator!=(const nr_complex& x, const nr_complex& y)
         return 0;
 }
 
-class matrice
-{
-protected:
-    nr_complex **v;
+class matrice {
+private:
+	int n, m;       // n=nr linii; m=nr coloane
+	nr_complex *mat;
 public:
-    virtual void matrice_al(int,int)=0;
-    virtual void delet()=0;
+	matrice();
+	matrice(int, int);
+	~matrice();
+	matrice(const matrice &obj);
+	matrice& operator=(const matrice&);
 
+	nr_complex* operator ()(int, int);
+	friend istream& operator>>(istream&, matrice&);
+	friend ostream& operator<<(ostream&, matrice);
+	friend matrice operator+(matrice&, matrice&);
+	friend matrice operator*(matrice&, matrice&);
+	friend class nr_complex;
+	nr_complex determinant0(matrice a);
+	matrice& submatrice(int, int, int, matrice&, matrice&);
+	nr_complex determ(matrice&, int);
+	friend matrice transpusa(matrice&);
 };
-
-class matrice_oarecare:public matrice
-{
-    int lin,col;
-
-public:
-    void matrice_al(int,int);
-    void delet();
-
-    void copie(matrice_oarecare&);
-    matrice_oarecare();
-    matrice_oarecare(int, int);
-    ~matrice_oarecare();
-    matrice_oarecare(const matrice_oarecare &);
-    matrice_oarecare& operator =(const matrice_oarecare&);
-    friend istream& operator >>(istream&, matrice_oarecare&);
-    friend ostream& operator <<(ostream&, matrice_oarecare&);
-};
-
-void matrice_oarecare::matrice_al(int i,int j)
-{
-    int z;
-    v=new nr_complex*[i];
-    for(z=0; z<i; z++)
-        v[z]=new nr_complex[j];
+matrice::matrice() {
+	n=0;
+	m=0;
+	mat=NULL;
 }
-
-void matrice_oarecare::delet()
-{
-    for(int i=0; i<lin; i++)
-        delete[] v[i];
-    delete[] v;
-    lin=0;
-    col=0;
+matrice::matrice(int i, int j) {
+	n=i;
+	m=j;
+	mat=new nr_complex[n*m];
 }
-
-void matrice_oarecare::copie(matrice_oarecare& a)
-{
-    delet();
-    lin=a.lin;
-    col=a.col;
-    matrice_al(lin,col);
-    int i,j;
-    for(i=0; i<lin; i++)
-        for(j=0; j<col; j++)
-            v[i][j]=a.v[i][j];
+matrice::~matrice() {
+	delete[] mat;
 }
-
-matrice_oarecare::matrice_oarecare()
-{
-    lin=0;
-    col=0;
-
+matrice& matrice::operator=(const matrice &obj) {
+	m=obj.m;
+	n=obj.n;
+	mat=new nr_complex[obj.m*obj.n];
+	for(int i=0;i<obj.m*obj.n;i++)
+		mat[i]=obj.mat[i];
+	return *this;
 }
-
-matrice_oarecare::matrice_oarecare(int i, int j)
-{
-    lin=i;
-    col=j;
-    matrice_al(lin,col);
-
+matrice::matrice(const matrice &obj){
+	*this=obj;
 }
-
-matrice_oarecare::~matrice_oarecare()
-{
-    for(int i=0; i<lin; i++)
-        delete[] v[i];
-    delete[] v;
-    lin=0;
-    col=0;
+// supraincarcarea operatorului ()
+nr_complex* matrice::operator()(int i, int j) {
+	return mat+(i*m+j);                // elementul de pe linia i si coloana j
 }
-
-matrice_oarecare& matrice_oarecare::operator=(const matrice_oarecare &obj)
-{
-    int l=obj.lin,c=obj.col;
-    matrice_al(l,c);
-    for(int i=0; i<l*c; i++)
-        v[i]=obj.v[i];
-    return *this;
+//supraincarcarea operatorului >> pentru matrici
+istream& operator>>(istream& input, matrice& a) {
+	int i, j;
+	a.mat=new nr_complex[a.m*a.n];           /// trebuie alocata memorie pentru fiecare matrice
+	for(i=0;i<a.n;i++)
+    for(j=0;j<a.m;j++)
+        input>>*a(i,j);
+	return input;
 }
-
-istream& operator>>(istream &in, matrice_oarecare &a)
-{
-    cout<<"Linii: ";
-    in>>a.lin;
-    cout<<"Coloane: ";
-    in>>a.col;
-    a.matrice_al(a.lin, a.col);
-    int i, j;
-    for(i = 0; i < a.lin; i++)
-        for(j = 0; j < a.col; j++)
-            in>>a.v[i][j];
-    return in;
+//supraincarcarea operatorului << pentru matrici
+ostream& operator<<(ostream& output, matrice a) {
+	int i, j;
+	//printf("%d %d \n", a.m, a.n);
+	cout<<a.m<<" "<<a.n;             // dimensiunea fiecarei matrici
+	for(i=0;i<a.n;i++) {
+		for(j=0;j<a.m;j++)
+			output<<*a(i,j)<<' ';
+		output<<endl;
+	}
+	return output;
 }
-
-ostream& operator<<(ostream &out, matrice_oarecare &a)
-{
-    out<<endl<<"Nr linii si coloane: "<<a.lin<<" "<<a.col<<endl;
-    int i, j;
-    for(i=0; i<a.lin; i++)
-    {
-        for(j=0; j<a.col; j++)
-            out<<a.v[i][j]<<" ";
-        out<<endl;
-    }
-    return out;
+//supraincarcarea operatorului + pentru matrici
+matrice operator+(matrice& a1, matrice& a2) {
+	matrice a3;
+	a3.n=a1.n;
+	a3.m=a1.m;
+	a3.mat=new nr_complex[a3.m*a3.n];             /// trebuie alocata memorie
+	int i, j;
+	if(a1.n!=a2.n || a1.m!=a2.m) {
+		cout<<"Nu au aceeasi dimensiune"<<endl;
+		return a3;
+	}
+	else
+		for(i=0;i<a1.n;i++)
+        for(j=0;j<a1.m;j++)
+            *a3(i,j)=(*a1(i,j))+(*a2(i,j));
+	return a3;
 }
-
-class matrice_patratica:public matrice
-{
-    int dim;
-
-public:
-    void matrice_al(int,int);
-    void delet();
-
-    void copie(matrice_patratica&);
-    matrice_patratica();
-    matrice_patratica(int);
-    ~matrice_patratica();
-    matrice_patratica(const matrice_patratica &);
-    matrice_patratica& operator =(const matrice_patratica&);
-    friend istream& operator >>(istream&, matrice_patratica&);
-    friend ostream& operator <<(ostream&, matrice_patratica&);
-
-};
-
-void matrice_patratica::matrice_al(int i,int j)
-{
-    int z;
-    v=new nr_complex*[i];
-    for(z=0; z<i; z++)
-        v[z]=new nr_complex[j];
-}
-
-void matrice_patratica::delet()
-{
-    for(int i=0; i<dim; i++)
-        delete[] v[i];
-    delete[] v;
-    dim=0;
-
-}
-
-void matrice_patratica::copie(matrice_patratica& a)
-{
-    delet();
-    dim=a.dim;
-    matrice_al(dim,dim);
-    int i,j;
-    for(i=0; i<dim; i++)
-        for(j=0; j<dim; j++)
-            v[i][j]=a.v[i][j];
-}
-
-matrice_patratica::matrice_patratica()
-{
-    dim=0;
-
-}
-
-matrice_patratica::matrice_patratica(int i)
-{
-    dim=i;
-    matrice_al(dim,dim);
-
-}
-
-matrice_patratica::~matrice_patratica()
-{
-    for(int i=0; i<dim; i++)
-        delete[] v[i];
-    delete[] v;
-    dim=0;
-}
-
-matrice_patratica& matrice_patratica::operator=(const matrice_patratica &obj)
-{
-    int d=obj.dim;
-    matrice_al(d,d);
-    for(int i=0; i<d*d; i++)
-        v[i]=obj.v[i];
-    return *this;
-}
-
-istream& operator>>(istream &in, matrice_patratica &a)
-{
-    cout<<"Linii si Coloane:";
-    in>>a.dim;
-    a.matrice_al(a.dim, a.dim);
-    int i, j;
-    for(i = 0; i < a.dim; i++)
-        for(j = 0; j < a.dim; j++)
-            in>>a.v[i][j];
-    return in;
-}
-
-ostream& operator<<(ostream &out, matrice_patratica &a)
-{
-    out<<endl<<"Nr linii si coloane: "<<a.dim<<endl;
-    int i, j;
-    for(i=0; i<a.dim; i++)
-    {
-        for(j=0; j<a.dim; j++)
-            out<<a.v[i][j]<<" ";
-        out<<endl;
-    }
-
-    return out;
+//supraincarcarea operatorului * pentru matrici
+matrice operator*(matrice& a1, matrice& a2) {
+	matrice a3(a1.n, a2.m), b(a1.n, a2.m);
+	int i, j, k;
+	a3.n=a1.n;
+	a3.m=a2.m;
+	b.n=a1.n;
+	b.m=a2.m;
+	a3.mat=new nr_complex[a3.m*a3.n];             /// trebuie alocata memorie
+	b.mat=new nr_complex[b.m*b.n];
+	//for(i=0;i<a1.n;i++)
+    //for(j=0;j<a2.m;j++)
+      //  *a3(i,j) = 0;
+	if(a1.m!=a2.n) {
+		cout<<"Nu se pot inmulti\n";
+		return a3;
+	}
+	else {
+		for(i=0;i<a1.n;i++)
+        for(j=0;j<a2.m;j++)
+        for(k=0;k<a1.m;k++) {
+            *b(i,j)=(*a1(i,k))*(*a2(k,j));
+            *a3(i,j)=(*a3(i,j))+(*b(i,j));
+        }
+	}
+	return a3;
 }
 
 int main()
 {nr_complex x;
-    matrice_patratica a,b;
+    matrice a,b;
     cin>>a;
     cout<<a<<endl;
     return 0;
